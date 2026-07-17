@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi import HTTPException
 from pydantic import BaseModel
+import copy
+from typing import Optional
 
 app = FastAPI()
 
-tasks = [
+INITIAL_TASKS = [
     {
         "id":1,
         "title":"Learn FastAPI",
@@ -21,6 +23,8 @@ tasks = [
         "done":True
     }
 ]
+
+tasks = copy.deepcopy(INITIAL_TASKS)
 
 class Task(BaseModel):
     title: str
@@ -46,8 +50,26 @@ def health():
     }
 
 @app.get("/tasks")
-def get_tasks():
-    return tasks
+def get_tasks(
+        done: Optional[bool] = None,
+        search: Optional[str] = None,
+    ):
+
+    result = tasks
+
+    if done is not None:
+        result = [
+            task for task in result
+            if task["done"] == done
+        ]
+
+    if search:
+        result = [
+            task for task in result
+            if search.lower() in task["title"].lower()
+        ]
+
+    return result
 
 @app.get("/tasks/{id}")
 def get_task(id: int):
@@ -107,3 +129,20 @@ def delete_task(id: int):
         status_code=404,
         detail=f"Task {id} not found"
     )
+
+@app.get("/stats")
+def get_stats():
+    total = len(tasks)
+
+    done = len([
+        task for task in tasks
+        if task["done"]
+    ])
+
+    open_tasks = total - done
+
+    return {
+        "total": total,
+        "done": done,
+        "open_tasks": open_tasks,
+    }
