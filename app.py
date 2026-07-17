@@ -25,6 +25,10 @@ tasks = [
 class Task(BaseModel):
     title: str
 
+class TaskUpdate(BaseModel):
+    title: str
+    done: bool
+
 @app.get("/")
 def root():
     return {
@@ -72,3 +76,34 @@ def create_task(task: Task):
     tasks.append(newTask)
 
     return newTask
+
+@app.put("/tasks/{id}")
+def update_task(id: int, data: TaskUpdate):
+    if data.title.strip() == "":
+        raise HTTPException(
+            status_code=400,
+            detail="Task title cannot be empty"
+        )
+
+    for task in tasks:
+        if task["id"] == id:
+            task["title"] = data.title
+            task["done"] = data.done
+            return task
+
+    raise HTTPException(
+        status_code=404,
+        detail=f"Task {id} not found"
+    )
+
+@app.delete("/tasks/{id}", status_code=204)
+def delete_task(id: int):
+    for task in tasks:
+        if task["id"] == id:
+            tasks.remove(task)
+            return
+
+    raise HTTPException(
+        status_code=404,
+        detail=f"Task {id} not found"
+    )
