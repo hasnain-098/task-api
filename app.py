@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi import HTTPException
+from fastapi import Response
 from pydantic import BaseModel
 import copy
 from typing import Optional
@@ -167,28 +168,49 @@ def update_task(id: int, data: TaskUpdate):
             detail="Task title cannot be empty"
         )
 
-    for task in tasks:
-        if task["id"] == id:
-            task["title"] = data.title
-            task["done"] = data.done
-            return task
-
-    raise HTTPException(
-        status_code=404,
-        detail=f"Task {id} not found"
+    cursor.execute(
+        "SELECT * FROM tasks WHERE id = ?",
+        (id,)
     )
+
+    if cursor.fetchone() is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task {id} not found"
+        )
+
+    cursor.execute(
+        """UPDATE tasks SET title = ?, done = ? WHERE id = ?""",
+        (data.title, int(data.done), id)
+    )
+
+    conn.commit()
+
+    return {
+        "id": id,
+        "title": data.title,
+        "done": data.done
+    }
 
 @app.delete("/tasks/{id}", status_code=204)
 def delete_task(id: int):
-    for task in tasks:
-        if task["id"] == id:
-            tasks.remove(task)
-            return
-
-    raise HTTPException(
-        status_code=404,
-        detail=f"Task {id} not found"
+    cursor.execute(
+        "SELECT * FROM tasks WHERE id = ?",
+        (id,)
     )
+    if cursor.fetchone() is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task {id} not found"
+        )
+
+    cursor.execute(
+        "DELETE FROM tasks WHERE id = ?",
+        (id,)
+    )
+    conn.commit()
+
+    return Response(status_code=204)
 
 @app.get("/stats")
 def get_stats():
