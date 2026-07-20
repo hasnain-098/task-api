@@ -11,6 +11,7 @@ conn = sqlite3.connect(
     check_same_thread=False
 )
 
+conn.row_factory = sqlite3.Row
 cursor = conn.cursor()
 
 cursor.execute("""
@@ -89,7 +90,18 @@ def get_tasks(
         search: Optional[str] = None,
     ):
 
-    result = tasks
+    cursor.execute("SELECT * FROM tasks")
+    rows = cursor.fetchall()
+
+    result = []
+    for row in rows:
+        result.append(
+            {
+                "id": row["id"],
+                "title": row["title"],
+                "done": bool(row["done"]),
+            }
+        )
 
     if done is not None:
         result = [
@@ -107,14 +119,25 @@ def get_tasks(
 
 @app.get("/tasks/{id}")
 def get_task(id: int):
-    for task in tasks:
-        if task["id"] == id:
-            return task
 
-    raise HTTPException(
-        status_code=404,
-        detail=f"Task {id} not found"
+    cursor.execute(
+        "SELECT * FROM tasks WHERE id = ?",
+        (id,)
     )
+
+    row = cursor.fetchone()
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task {id} not found"
+        )
+
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "done": bool(row["done"])
+    }
 
 @app.post("/tasks", status_code=201)
 def create_task(task: Task):
