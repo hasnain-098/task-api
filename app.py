@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi import Response
 from pydantic import BaseModel
-import copy
 from typing import Optional
 import sqlite3
 
@@ -19,7 +18,9 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
-    done BOOLEAN NOT NULL
+    done BOOLEAN NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 """)
 
@@ -41,26 +42,6 @@ if count == 0:
     )
 
     conn.commit()
-
-INITIAL_TASKS = [
-    {
-        "id":1,
-        "title":"Learn FastAPI",
-        "done":False
-    },
-    {
-        "id":2,
-        "title":"Complete Assignment",
-        "done":False
-    },
-    {
-        "id":3,
-        "title":"Push to GitHub",
-        "done":True
-    }
-]
-
-tasks = copy.deepcopy(INITIAL_TASKS)
 
 class Task(BaseModel):
     title: str
@@ -91,32 +72,37 @@ def get_tasks(
         search: Optional[str] = None,
     ):
 
-    cursor.execute("SELECT * FROM tasks")
-    rows = cursor.fetchall()
+    query = """SELECT * FROM tasks"""
 
-    result = []
-    for row in rows:
-        result.append(
-            {
-                "id": row["id"],
-                "title": row["title"],
-                "done": bool(row["done"]),
-            }
-        )
+    conditions = []
+    params = []
 
     if done is not None:
-        result = [
-            task for task in result
-            if task["done"] == done
-        ]
+        conditions.append("done = ?")
+        params.append(int(done))
 
     if search:
-        result = [
-            task for task in result
-            if search.lower() in task["title"].lower()
-        ]
+        conditions.append("title LIKE ?")
+        params.append(f"%{search}%")
 
-    return result
+    if conditions:
+        query += " WHERE " + " AND " .join(conditions)
+
+    query += " ORDER BY title"
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+
+    return [
+        {
+            "id": row["id"],
+            "title": row["title"],
+            "done": bool(row["done"]),
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
+        for row in rows
+    ]
 
 @app.get("/tasks/{id}")
 def get_task(id: int):
@@ -154,10 +140,18 @@ def create_task(task: Task):
     )
     conn.commit()
 
+    cursor.execute(
+        "SELECT * FROM tasks WHERE id = ?",
+        (cursor.lastrowid,)
+    )
+    row = cursor.fetchone()
+
     return {
-        "id": cursor.lastrowid,
-        "title": task.title,
-        "done": False
+        "id": row["id"],
+        "title": row["title"],
+        "done": bool(row["done"]),
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"]
     }
 
 @app.put("/tasks/{id}")
@@ -180,16 +174,29 @@ def update_task(id: int, data: TaskUpdate):
         )
 
     cursor.execute(
-        """UPDATE tasks SET title = ?, done = ? WHERE id = ?""",
+        """
+        UPDATE tasks 
+        SET title = ?, done = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
         (data.title, int(data.done), id)
     )
 
     conn.commit()
 
+    cursor.execute(
+        "SELECT * FROM tasks WHERE id = ?",
+        (id,)
+    )
+    row = cursor.fetchone()
+
     return {
-        "id": id,
-        "title": data.title,
-        "done": data.done
+        "id": row["id"],
+        "title": row["title"],
+        "done": bool(row["done"]),
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"]
     }
 
 @app.delete("/tasks/{id}", status_code=204)
@@ -214,17 +221,16 @@ def delete_task(id: int):
 
 @app.get("/stats")
 def get_stats():
-    total = len(tasks)
+    cursor.execute("SELECT COUNT(*) FROM tasks")
+    total = cursor.fetchone()[0]
 
-    done = len([
-        task for task in tasks
-        if task["done"]
-    ])
-
-    open_tasks = total - done
+    cursor.execute(
+        "SELECT COUNT(*) FROM tasks WHERE done = 1"
+    )
+    completed = cursor.fetchone()[0]
 
     return {
         "total": total,
-        "done": done,
-        "open_tasks": open_tasks,
+        "done": completed,
+        "open_tasks": total - completed
     }
