@@ -3,8 +3,42 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 import copy
 from typing import Optional
+import sqlite3
 
 app = FastAPI()
+conn = sqlite3.connect(
+    "tasks.db",
+    check_same_thread=False
+)
+
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    done BOOLEAN NOT NULL
+)
+""")
+
+conn.commit()
+
+cursor.execute("SELECT COUNT(*) FROM tasks")
+count = cursor.fetchone()[0]
+
+if count == 0:
+    sample_tasks = [
+        ("Learn FastAPI", False),
+        ("Complete Assignment", False),
+        ("Push to GitHub", True),
+    ]
+
+    cursor.executemany(
+        "INSERT INTO tasks (title, done) VALUES (?, ?)",
+        sample_tasks
+    )
+
+    conn.commit()
 
 INITIAL_TASKS = [
     {
