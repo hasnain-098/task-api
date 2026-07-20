@@ -147,14 +147,17 @@ def create_task(task: Task):
             detail="Task title cannot be empty"
         )
 
-    newTask = {
-        "id": len(tasks) + 1,
+    cursor.execute(
+        """INSERT INTO tasks (title, done) VALUES (?, ?)""",
+        (task.title, False)
+    )
+    conn.commit()
+
+    return {
+        "id": cursor.lastrowid,
         "title": task.title,
         "done": False
     }
-    tasks.append(newTask)
-
-    return newTask
 
 @app.put("/tasks/{id}")
 def update_task(id: int, data: TaskUpdate):
