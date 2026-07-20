@@ -69,3 +69,4 @@ This query returns the total number of tasks currently stored in the SQLite data
 - The tasks table is created automatically if it does not exist.  
 - Sample tasks are inserted only when the table is empty.  
 - SQL queries use parameterized placeholders (?) to help prevent SQL injection.  
+ 
