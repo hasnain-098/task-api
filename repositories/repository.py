@@ -39,14 +39,15 @@ def create(title):
     cursor.execute(
         """
         INSERT INTO tasks(title,done)
-        VALUES(?,?)
+        VALUES(%s,%s)
+        RETURNING *
         """,
         (title, False)
     )
 
     conn.commit()
 
-    return get_by_id(cursor.lastrowid)
+    return cursor.fetchone()
 
 def update(task_id, title, done):
 
@@ -54,12 +55,12 @@ def update(task_id, title, done):
         """
         UPDATE tasks
         SET
-            title=?,
-            done=?,
+            title=%s,
+            done=%s,
             updated_at=CURRENT_TIMESTAMP
-        WHERE id=?
+        WHERE id=%s
         """,
-        (title, int(done), task_id)
+        (title, bool(done), task_id)
     )
 
     conn.commit()
@@ -69,7 +70,7 @@ def update(task_id, title, done):
 def delete(task_id):
 
     cursor.execute(
-        "DELETE FROM tasks WHERE id=?",
+        "DELETE FROM tasks WHERE id=%s",
         (task_id,)
     )
 
@@ -77,14 +78,19 @@ def delete(task_id):
 
 def stats():
 
-    cursor.execute("SELECT COUNT(*) FROM tasks")
+    cursor.execute("""
+        SELECT COUNT(*) AS total
+        FROM tasks
+    """)
 
-    total = cursor.fetchone()[0]
+    total = cursor.fetchone()["total"]
 
-    cursor.execute(
-        "SELECT COUNT(*) FROM tasks WHERE done=1"
-    )
+    cursor.execute("""
+        SELECT COUNT(*) AS completed
+        FROM tasks
+        WHERE done = TRUE
+    """)
 
-    completed = cursor.fetchone()[0]
+    completed = cursor.fetchone()["completed"]
 
     return total, completed
