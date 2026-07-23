@@ -1,37 +1,66 @@
 # Task API
 
-Simple CRUD API built using FastAPI.
+A simple CRUD API built using **FastAPI** with **PostgreSQL** for persistent storage and **Docker Compose** for containerized deployment.
 
 ## Features
 - Create, Read, Update, and Delete tasks
-- Persistent storage using SQLite
+- PostgreSQL database with persistent storage
+- Automatic database initialization and seeding
+- Docker Compose support for one-command setup
 - Interactive API documentation with Swagger UI
 
-## Why SQLite?  
-SQLite was chosen because it is lightweight, serverless, and stores data in a single file. It requires no separate database server and keeps data persistent even after the application restarts.
+## Why PostgreSQL?
+PostgreSQL was chosen because it is a powerful, open-source relational database management system that provides reliability, scalability, and SQL compliance. It is widely used in production environments and supports advanced querying and data integrity features.
 
-## Database  
-The application stores data in a SQLite database file named:  
-tasks.db  
-If the database file does not exist, the application automatically:  
-- Creates tasks.db  
-- Creates the tasks table  
-- Seeds three sample tasks (only when the table is empty)
+## Database
+The application uses a PostgreSQL database running inside a Docker container.  
+On application startup it automatically:
+- Creates the `tasks` table if it does not exist.
+- Seeds three sample tasks when the table is empty.
+- Preserves data using a Docker volume (`postgres_data`).
+
+## Prerequisites
+- Python 3.13+
+- Docker Desktop
+- Docker Compose
 
 ## Installation
 ```
 pip install -r requirements.txt
 ```
-## Run
+
+## Run Locally
+Start the PostgreSQL container:
+
+```bash
+docker compose up -d db
 ```
+
+Run the FastAPI application:
+```bash
 uvicorn app:app --reload
 ```
+
+## Run with Docker Compose
+Start the complete application stack:
+
+```bash
+docker compose up --build
+```
+
+The API will be available at:
+
+```
+http://localhost:8000
+```
+
 ## Endpoints
 
 GET /  
 GET /health  
 GET /tasks  
 GET /tasks/{id}  
+GET /stats  
 POST /tasks  
 PUT /tasks/{id}  
 DELETE /tasks/{id}  
@@ -48,11 +77,6 @@ http://localhost:8000/docs
   <img src="screenshots/swagger_ui.png" width="800">
 </p>
 
-## Database Viewer
-<p align="center"> 
-  <img src="screenshots/db_browser_sqlite.png" width="800"> 
-</p>
-
 ## Example SQL Query
 SELECT COUNT(*) FROM tasks;  
 This query returns the total number of tasks currently stored in the SQLite database.  
@@ -60,13 +84,32 @@ This query returns the total number of tasks currently stored in the SQLite data
 ## Technologies Used
 - Python  
 - FastAPI  
-- SQLite  
-- DB Browser for SQLite  
+- PostgreSQL
+- Psycopg
+- Docker
+- Docker Compose
 - Uvicorn  
 
+## Project Structure
+```
+task-api/
+├── routes/
+├── services/
+├── repositories/
+├── schemas.py
+├── database.py
+├── app.py
+├── Dockerfile
+├── compose.yaml
+├── .env (git ignored)
+├── requirements.txt
+└── README.md
+```
+
 ## Notes
-- The database is created automatically when the application starts for the first time.  
-- The tasks table is created automatically if it does not exist.  
-- Sample tasks are inserted only when the table is empty.  
-- SQL queries use parameterized placeholders (?) to help prevent SQL injection.  
+- The PostgreSQL database starts automatically using Docker Compose.
+- The `tasks` table is created automatically if it does not exist.
+- Three sample tasks are inserted only when the table is empty.
+- SQL queries use parameterized placeholders (`%s`) to prevent SQL injection.
+- Database data persists across container restarts using the `postgres_data` Docker volume.
  
