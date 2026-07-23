@@ -8,11 +8,11 @@ def get_all(done=None, search=None):
     params = []
 
     if done is not None:
-        conditions.append("done=?")
+        conditions.append("done=%s")
         params.append(int(done))
 
     if search:
-        conditions.append("title LIKE ?")
+        conditions.append("title LIKE %s")
         params.append(f"%{search}%")
 
     if conditions:
@@ -28,7 +28,7 @@ def get_all(done=None, search=None):
 def get_by_id(task_id):
 
     cursor.execute(
-        "SELECT * FROM tasks WHERE id=?",
+        "SELECT * FROM tasks WHERE id=%s",
         (task_id,)
     )
 
