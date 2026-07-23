@@ -11,6 +11,4 @@ __pycache__/
 *.py[cod]
 *.pyo
 
-tasks.db
-
 *.env
